@@ -18,18 +18,18 @@ parser.add_argument('--patience', type=int, default=10, help='the number of epoc
 parser.add_argument('--nonhybrid', action='store_true', help='only use the global preference to predict')
 parser.add_argument('--validation', action='store_true', help='validation')
 parser.add_argument('--valid_portion', type=float, default=0.1, help='split the portion of training set as validation set')
-parser.add_argument('--sgc_embed', type=int, default=0, help='Type of SGC embedding')
+parser.add_argument('--sgc_embed', type=int, default=1, help='Type of SGC embedding')
 parser.add_argument('--gnn_embed', action='store_true', default = False, help='Use GNN embedding')
-parser.add_argument('--alpha', type=float, default=1, help='the hyper parameter to control the effect of ajadency matrix')
+parser.add_argument('--alpha', type=float, default=0.15, help='the hyper parameter to control the effect of ajadency matrix')
 parser.add_argument('--beta', type=float, default=1, help='the hyper parameter to control the effect of ajadency matrix')
-parser.add_argument('--degree', type=int, default=1, help='the hyper parameter to control the degree of matrix multiplication')
+parser.add_argument('--degree', type=int, default=3, help='the hyper parameter to control the degree of matrix multiplication')
 
 opt = parser.parse_args()
-opt.sgc_embed = 1
+#opt.sgc_embed = 1
 #opt.gnn_embed = True
-opt.alhpa = 0.15
-opt.beta = 1
-opt.degree = 3
+#opt.alhpa = 0.15
+#opt.beta = 1
+#opt.degree = 3
 print(opt)
 
 def main():
