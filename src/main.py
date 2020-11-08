@@ -1,3 +1,4 @@
+# -*- coding:UTF-8 -*-
 import argparse
 import pickle
 import time
@@ -20,16 +21,17 @@ parser.add_argument('--validation', action='store_true', help='validation')
 parser.add_argument('--valid_portion', type=float, default=0.1, help='split the portion of training set as validation set')
 parser.add_argument('--sgc_embed', type=int, default=1, help='Type of SGC embedding')
 parser.add_argument('--gnn_embed', action='store_true', default = False, help='Use GNN embedding')
-parser.add_argument('--alpha', type=float, default=0.15, help='the hyper parameter to control the effect of ajadency matrix')
+parser.add_argument('--alpha', type=float, default=1, help='the hyper parameter to control the effect of ajadency matrix')
 parser.add_argument('--beta', type=float, default=1, help='the hyper parameter to control the effect of ajadency matrix')
 parser.add_argument('--degree', type=int, default=3, help='the hyper parameter to control the degree of matrix multiplication')
-
+parser.add_argument('--normalize', action='store_true', default=False, help='Should ajadency matrix do this or not: ')
 opt = parser.parse_args()
-#opt.sgc_embed = 1
-#opt.gnn_embed = True
-#opt.alhpa = 0.15
-#opt.beta = 1
-#opt.degree = 3
+
+#opt.normalize = True    #到底做不做 A' = (D + I)^-1/2 * ( A + I ) * (D + I)^-1/2
+#opt.sgc_embed = 1        #邻接矩阵A中要不要做(αA+(1-α)I)X
+#opt.alpha = 1            #邻接矩阵A的比例
+#opt.beta = 1             #额外信息的比例
+#opt.degree = 3           #SGC特征处理的度
 print(opt)
 
 def main():

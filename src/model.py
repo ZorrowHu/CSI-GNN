@@ -62,6 +62,7 @@ class SessionGraph(Module):
         self.alpha = opt.alpha
         self.beta = opt.beta
         self.degree = opt.degree
+        self.normalize = opt.normalize
 
         self.embedding = nn.Embedding(self.n_node, self.hidden_size)
         self.gnn = GNN(self.hidden_size, step=opt.step)                         #在这里用了GNN
@@ -136,7 +137,7 @@ class SessionGraph(Module):
             # 从这里开始SGC处理特征
             # 使用实际邻接矩阵A，这个方法比前两个都work
             ################################################################
-            if self.sgc_embed == 1:    
+            if self.normalize == False:    
                 #Version 1.0 没有对特征矩阵A进行归一化的操作
                 #效果还不错哦
                 batch_size, item_num, hidden_size = hidden.shape
@@ -145,10 +146,12 @@ class SessionGraph(Module):
                 for i in range(len(A)):
                     #A[i] = alpha * norm_adj + (1 - alpha) * torch.eye(item_num).cuda()
                     #下面这行效果比较好，估计是因为考虑了重复点击的缘故
-                    A[i] = alpha * A[i] + beta * (1 - A[i]) * torch.eye(item_num).cuda()
-                    #A[i] = alpha * A[i] + (1 - alpha) * torch.eye(item_num).cuda() + beta * (1 - A[i]) * torch.eye(item_num).cuda()
+                    if self.sgc_embed == 1:
+                        A[i] = alpha * A[i] + beta * (1 - A[i]) * torch.eye(item_num).cuda()
+                    elif self.sgc_embed == 2:
+                        A[i] = alpha * A[i] + (1 - alpha) * torch.eye(item_num).cuda() + beta * (1 - A[i]) * torch.eye(item_num).cuda()
 
-            if self.sgc_embed == 2:
+            if self.normalize == True:
                 #Version 2.0 对 特征矩阵A进行归一化的操作 A' = (D + I)^-1/2 * ( A + I ) * (D + I)^-1/2 
                 #写错了反而效果更好了
                 batch_size, item_num, hidden_size = hidden.shape
@@ -165,12 +168,13 @@ class SessionGraph(Module):
                     norm_adj = torch.mm(torch.mm(d_mat_inv_sqrt, adj), d_mat_inv_sqrt)
 
                     #怎么回事？？？写错了反而效果还这么好？？？
-                    A[i] = alpha * norm_adj + beta * (1 - norm_adj) * torch.eye(item_num).cuda()
-                    #A[i] = alpha * A[i] + (1 - alpha) * torch.eye(item_num).cuda() + beta * (1 - A[i]) * torch.eye(item_num).cuda()
-                
-
+                    if self.sgc_embed == 1:
+                        A[i] = alpha * norm_adj + beta * (1 - norm_adj) * torch.eye(item_num).cuda()
+                    elif self.sgc_embed == 2:
+                        A[i] = alpha * norm_adj + (1 - alpha) * torch.eye(item_num).cuda() + beta * (1 - norm_adj) * torch.eye(item_num).cuda()
             for i in range(degree):
                 hidden = torch.bmm(A, hidden)
+
         elif self.gnn_embed == True:
             #print('Using GNN Embedding')
             hidden = self.gnn(A, hidden)
