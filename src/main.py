@@ -1,10 +1,14 @@
 # -*- coding:UTF-8 -*-
 import argparse
 import pickle
+import os
+import sys
 import time
+import datetime
 from utils import build_graph, Data, split_validation
 from model import *
- 
+from torch.nn.parallel import DistributedDataParallel
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', default='sample', help='dataset name: diginetica/yoochoose1_4/yoochoose1_64/sample')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size') # 原始默认为100，但是gpu空间不够就先设置成50
@@ -27,12 +31,26 @@ parser.add_argument('--degree', type=int, default=3, help='the hyper parameter t
 parser.add_argument('--normalize', action='store_true', default=False, help='Should ajadency matrix do this or not: ')
 opt = parser.parse_args()
 
-#opt.normalize = True    #到底做不做 A' = (D + I)^-1/2 * ( A + I ) * (D + I)^-1/2
-#opt.sgc_embed = 1        #邻接矩阵A中要不要做(αA+(1-α)I)X
+#opt.batchSize = 100
+#opt.normalize = False    #到底做不做 A' = (D + I)^-1/2 * ( A + I ) * (D + I)^-1/2
+#opt.sgc_embed = 2        #邻接矩阵A中要不要做(αA+(1-α)I)X
+#opt.gnn_embed = True
 #opt.alpha = 1            #邻接矩阵A的比例
 #opt.beta = 1             #额外信息的比例
-#opt.degree = 3           #SGC特征处理的度
+opt.degree = 3           #SGC特征处理的度
 print(opt)
+
+class Logger(object):
+    def __init__(self, filename="Default.log"):
+        self.terminal = sys.stdout
+        self.log = open(filename, "w")
+ 
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+ 
+    def flush(self):
+        pass
 
 def main():
     train_data = pickle.load(open('../datasets/' + opt.dataset + '/train.txt', 'rb'))
@@ -85,4 +103,8 @@ def main():
 if __name__ == '__main__':
     if hasattr(torch.cuda, 'empty_cache'):
         torch.cuda.empty_cache()
+    
+    output_time = datetime.datetime.now().strftime('%m%d_%H%M')
+    sys.stdout = Logger(output_time + 'output.txt')
+    
     main()
