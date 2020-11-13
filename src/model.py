@@ -63,6 +63,7 @@ class SessionGraph(Module):
         self.beta = opt.beta
         self.degree = opt.degree
         self.normalize = opt.normalize
+        self.sgc_cpu = opt.sgc_cpu
 
         self.embedding = nn.Embedding(self.n_node, self.hidden_size)
         self.gnn = GNN(self.hidden_size, step=opt.step)                         #在这里用了GNN
@@ -108,31 +109,22 @@ class SessionGraph(Module):
     def forward(self, inputs, A):
 
         hidden = self.embedding(inputs)
+        batch_size, item_num, hidden_size = hidden.shape
         
-        ###############################################################
-        # 从这里开始SGC处理特征
-        # 不使用实际邻接矩阵A，而是利用KNN生成初始图
-        ################################################################
-        
-        # batch_size, item_num, hidden_size = hidden.shape
-        # hidden = hidden.reshape(batch_size, item_num*hidden_size)
-        
-        # '''
-        # 比方说可以在这里对原始的feature做一下sgc？
-        # '''
-        # features = hidden.cpu()
-        # features = features.detach().numpy().tolist()
-        # features = sgc_embed(features)
-        # features = trans_to_cuda(torch.Tensor(features).float())
+        if self.sgc_cpu == True:
+            hidden = trans_to_cpu(hidden)
+            A = trans_to_cpu(A)
+            I = torch.eye(item_num)
+        else:
+            I = torch.eye(item_num).cuda()
 
-        # '''
-        # 得到最终的hidden
-        # '''
-        # hidden = features.reshape(batch_size,item_num,hidden_size)
+            
         if self.sgc_embed > 0:
             alpha = self.alpha
             beta = self.beta
             degree = self.degree
+            A = torch.add(A[:, :, :A.shape[1]], A[:, :, A.shape[1]: 2 * A.shape[1]])
+
             ###############################################################
             # 从这里开始SGC处理特征
             # 使用实际邻接矩阵A，这个方法比前两个都work
@@ -140,38 +132,36 @@ class SessionGraph(Module):
             if self.normalize == False:    
                 #Version 1.0 没有对特征矩阵A进行归一化的操作
                 #效果还不错哦
-                batch_size, item_num, hidden_size = hidden.shape
-                A = torch.add(A[:, :, :A.shape[1]], A[:, :, A.shape[1]: 2 * A.shape[1]])
                 #Version 1.1 在暴力相乘的基础上引入alpha和degree进行控制
                 for i in range(len(A)):
                     #A[i] = alpha * norm_adj + (1 - alpha) * torch.eye(item_num).cuda()
                     #下面这行效果比较好，估计是因为考虑了重复点击的缘故
                     if self.sgc_embed == 1:
-                        A[i] = alpha * A[i] + beta * (1 - A[i]) * torch.eye(item_num).cuda()
+                        A[i] = alpha * A[i] + beta * (1 - A[i]) * I
                     elif self.sgc_embed == 2:
-                        A[i] = alpha * A[i] + (1 - alpha) * torch.eye(item_num).cuda() + beta * (1 - A[i]) * torch.eye(item_num).cuda()
+                        A[i] = alpha * A[i] + (1 - alpha) * I + beta * (1 - A[i]) * I
 
             if self.normalize == True:
                 #Version 2.0 对 特征矩阵A进行归一化的操作 A' = (D + I)^-1/2 * ( A + I ) * (D + I)^-1/2 
                 #写错了反而效果更好了
-                batch_size, item_num, hidden_size = hidden.shape
-                A = torch.add(A[:, :, :A.shape[1]], A[:, :, A.shape[1]: 2 * A.shape[1]])
 
                 for i in range(len(A)):
                     adj = A[i]
-                    adj = adj + torch.eye(item_num).cuda()
+                    adj = adj + I
                     row_sum = adj.sum(1)
                     d_inv_sqrt = np.power(row_sum.tolist(), -0.5).flatten()
                     d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
                     d_mat_inv_sqrt = sp.diags(d_inv_sqrt).toarray()
-                    d_mat_inv_sqrt = trans_to_cuda(torch.Tensor(d_mat_inv_sqrt).float())
+                    d_mat_inv_sqrt = torch.Tensor(d_mat_inv_sqrt).float()
+                    if self.sgc_cpu == False:
+                        d_mat_inv_sqrt = trans_to_cuda(d_mat_inv_sqrt)
                     norm_adj = torch.mm(torch.mm(d_mat_inv_sqrt, adj), d_mat_inv_sqrt)
 
                     #怎么回事？？？写错了反而效果还这么好？？？
                     if self.sgc_embed == 1:
-                        A[i] = alpha * norm_adj + beta * (1 - norm_adj) * torch.eye(item_num).cuda()
+                        A[i] = alpha * norm_adj + beta * (1 - norm_adj) * I
                     elif self.sgc_embed == 2:
-                        A[i] = alpha * norm_adj + (1 - alpha) * torch.eye(item_num).cuda() + beta * (1 - norm_adj) * torch.eye(item_num).cuda()
+                        A[i] = alpha * norm_adj + (1 - alpha) * I + beta * (1 - norm_adj) * I
             for i in range(degree):
                 hidden = torch.bmm(A, hidden)
 
@@ -179,7 +169,7 @@ class SessionGraph(Module):
             #print('Using GNN Embedding')
             hidden = self.gnn(A, hidden)
             
-        return hidden
+        return trans_to_cuda(hidden)
 
 
 def trans_to_cuda(variable):
