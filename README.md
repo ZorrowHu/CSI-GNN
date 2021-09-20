@@ -10,4 +10,6 @@
 各项指标均优于[AAAI-2019 SR-GNN](https://arxiv.org/abs/1811.00855)和[SIGIR-2020 TAGNN](https://arxiv.org/abs/2005.02844)，最高提升可达4.34%
 
 ## 论文投稿状态
-《计算机工程》（北大核心、CSTPCD）在审中
+《计算机工程》（北大核心、CSTPCD）已录用
+
+【DOI】10.19678/j.issn.1000-3428.0061308
