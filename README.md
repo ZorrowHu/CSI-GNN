@@ -1,5 +1,5 @@
-# Complex Structural Information for Session-based Recommendation with Graph Neural Networks
-基于复杂结构信息的图神经网络序列推荐算法
+# CSI-GNN
+基于复杂结构信息的图神经网络序列推荐算法 Complex Structural Information for Session-based Recommendation with Graph Neural Networks
 
 ## Abstract
 摘要
